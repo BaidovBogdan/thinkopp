@@ -1,101 +1,269 @@
-import Image from "next/image";
+'use client';
+import { useEffect, useState } from 'react';
+import { Button, Form, Pagination, message } from 'antd';
+import { MyCustomInput } from './components/customComponents/CustomNumInput';
+import { MyInputForNumber } from './components/customComponents/CustomInputForNumber';
+import { MyInputForText } from './components/customComponents/CustomInputForText';
+import { MySelect } from './components/customComponents/CustomSelect';
+import { MyTextArea } from './components/customComponents/CustomTextArea';
+import { ArrowRightOutlined } from '@ant-design/icons';
+
+export interface MyInputForTextInterface {
+  customLabel: string;
+  customPlaceholder: string;
+  customValue: string;
+  setCustomValue: (value: string) => void;
+  isValid?: boolean;
+  options?: { value: string; label: string }[];
+}
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [isActiveBtn, setIsActiveBtn] = useState(false);
+  const [formData, setFormData] = useState({
+    genre: '',
+    selectedValueGenre: '',
+    selectedValueFormat: '',
+    selectedValueCountry: '',
+    selectedValuePrice: '',
+    sinopsis: '',
+    unf: '',
+  });
+  const [countries, setCountries] = useState([]);
+  const [errors, setErrors] = useState({
+    genre: false,
+    selectedValueGenre: false,
+    selectedValueFormat: false,
+    selectedValueCountry: false,
+    unf: false,
+  });
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+  useEffect(() => {
+    //@ts-ignore
+    const savedData = JSON.parse(localStorage.getItem(`page-${page}`));
+    if (savedData) {
+      setFormData(savedData);
+    } else {
+      setFormData({
+        genre: '',
+        selectedValueGenre: '',
+        selectedValueFormat: '',
+        selectedValueCountry: '',
+        selectedValuePrice: '',
+        sinopsis: '',
+        unf: '',
+      });
+    }
+  }, [page]);
+
+  useEffect(() => {
+    const fetchCountries = async () => {
+      try {
+        const response = await fetch(
+          'https://namaztimes.kz/ru/api/country?type=json',
+        );
+        const data = await response.json();
+        const transformedCountries = Object.entries(data)
+          .map(([key, country]) => ({
+            value: key,
+            //@ts-ignore
+            label: country.trim(),
+          }))
+          .sort((a, b) => {
+            if (a.label === 'Российская Федерация') return -1;
+            if (b.label === 'Российская Федерация') return 1;
+            return 0;
+          });
+        //@ts-ignore
+        setCountries(transformedCountries);
+      } catch (error) {
+        console.error('Error fetching country data:', error);
+      }
+    };
+
+    fetchCountries();
+  }, []);
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData((prevData) => ({ ...prevData, [field]: value }));
+    setErrors((prevErrors) => ({ ...prevErrors, [field]: false }));
+  };
+
+  const deleteInfo = () => {
+    setFormData({
+      genre: '',
+      selectedValueGenre: '',
+      selectedValueFormat: '',
+      selectedValueCountry: '',
+      selectedValuePrice: '',
+      sinopsis: '',
+      unf: '',
+    });
+
+    localStorage.removeItem(`page-${page}`);
+  };
+
+  const validateAndSaveData = () => {
+    const {
+      genre,
+      selectedValueGenre,
+      selectedValueFormat,
+      selectedValueCountry,
+      unf,
+    } = formData;
+
+    const newErrors = {
+      genre: !genre,
+      selectedValueGenre: !selectedValueGenre,
+      selectedValueFormat: !selectedValueFormat,
+      selectedValueCountry: !selectedValueCountry,
+      unf: unf.length !== 18,
+    };
+
+    setErrors(newErrors);
+
+    const firstErrorField = Object.keys(newErrors).find(
+      //@ts-ignore
+      (key) => newErrors[key],
+    );
+
+    if (firstErrorField) {
+      message.error(`Please fill in the ${firstErrorField} correctly.`);
+      return;
+    }
+
+    localStorage.setItem(`page-${page}`, JSON.stringify(formData));
+    setPage((prevPage) => prevPage + 1);
+    setTotalPages((prevTotal) => prevTotal + 1);
+  };
+
+  useEffect(() => {
+    const {
+      genre,
+      selectedValueGenre,
+      selectedValueFormat,
+      selectedValueCountry,
+      unf,
+    } = formData;
+
+    const isUnfValid = unf.length === 18;
+
+    const isFormValid =
+      genre &&
+      selectedValueGenre &&
+      selectedValueFormat &&
+      selectedValueCountry &&
+      isUnfValid;
+    //@ts-ignore
+    setIsActiveBtn(isFormValid);
+  }, [formData]);
+
+  return (
+    <main className="p-6 flex justify-center">
+      <div className="flex flex-col gap-10">
+        <section className="flex justify-between">
+          <b className="md:text-2xl">Производственные параметры фильма</b>
+          <Button className="w-[225px] h-[48px]" onClick={() => deleteInfo()}>
+            Отменить заполнение
+          </Button>
+        </section>
+        <Form
+          layout="vertical"
+          className="flex flex-col items-center lg:justify-between lg:flex-wrap lg:flex-row lg:gap-28"
+        >
+          <div className="flex gap-20 flex-col lg:gap-5">
+            <MyInputForText
+              customLabel="Название проекта"
+              customPlaceholder="Введите текст"
+              customValue={formData.genre}
+              setCustomValue={(value) => handleInputChange('genre', value)}
+              isValid={!errors.genre}
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            <MySelect
+              customLabel="Жанр"
+              customPlaceholder="Жанр"
+              customValue={formData.selectedValueGenre}
+              setCustomValue={(value) =>
+                handleInputChange('selectedValueGenre', value)
+              }
+              options={[
+                { value: '1', label: 'Драма' },
+                { value: '2', label: 'Комедия' },
+                { value: '3', label: 'Хоррор' },
+                { value: '4', label: 'Боевик' },
+              ]}
+              isValid={!errors.selectedValueGenre}
+            />
+            <MySelect
+              customLabel="Формат"
+              customPlaceholder="Формат"
+              customValue={formData.selectedValueFormat}
+              setCustomValue={(value) =>
+                handleInputChange('selectedValueFormat', value)
+              }
+              options={[
+                { value: '1', label: 'Для онлайн-платформ' },
+                { value: '2', label: 'Большого экрана' },
+                { value: '3', label: 'Интернета' },
+                { value: '4', label: 'Другое' },
+              ]}
+              isValid={!errors.selectedValueFormat}
+            />
+            <MyCustomInput
+              customLabel="UNF"
+              customPlaceholder="Введите UNF"
+              customValue={formData.unf}
+              setCustomValue={(value) => handleInputChange('unf', value)}
+              isValid={!errors.unf}
+            />
+          </div>
+          <div className="flex gap-20 flex-col lg:gap-5">
+            <MySelect
+              customLabel="Страна-производитель (копродукция)"
+              customPlaceholder="Страна"
+              customValue={formData.selectedValueCountry}
+              setCustomValue={(value) =>
+                handleInputChange('selectedValueCountry', value)
+              }
+              options={countries}
+              isValid={!errors.selectedValueCountry}
+            />
+            <MyInputForNumber
+              customLabel="Сведения о сметной стоимости производства фильма на территории Нижегородской области, если есть"
+              customPlaceholder="Сметная стоимость"
+              customValue={formData.selectedValuePrice}
+              setCustomValue={(value) =>
+                handleInputChange('selectedValuePrice', value)
+              }
+            />
+            <MyTextArea
+              customLabel="Синопсис"
+              customPlaceholder="Напишите краткое изложение"
+              customValue={formData.sinopsis}
+              setCustomValue={(value) => handleInputChange('sinopsis', value)}
+            />
+          </div>
+        </Form>
+        <footer className="flex justify-end items-center space-x-[-200px]">
+          <div className="flex justify-center items-center w-full">
+            <Pagination
+              current={page}
+              onChange={setPage}
+              total={totalPages * 10}
+            />
+          </div>
+          <Button
+            onClick={validateAndSaveData}
+            className="w-[248px] h-[48px]"
+            icon={<ArrowRightOutlined />}
+            disabled={!isActiveBtn}
           >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+            Следующий шаг
+          </Button>
+        </footer>
+      </div>
+    </main>
   );
 }
+
